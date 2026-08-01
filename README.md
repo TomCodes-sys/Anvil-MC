@@ -16,10 +16,14 @@ together, sharing everything they need to share.
 SSH into the Ubuntu Server box that will run Crafty, then:
 
 ```bash
+rm -rf Anvil-MC 2>/dev/null   # safe to re-run — clears out any previous/partial clone first
 git clone https://github.com/TomCodes-sys/Anvil-MC.git
 cd Anvil-MC
-sudo ./install.sh
+sudo bash install.sh
 ```
+
+(`bash install.sh` rather than `./install.sh` — this works even if the executable bit didn't survive however you got
+this repo onto GitHub, e.g. a drag-and-drop web upload, which silently strips it. No need to `chmod +x` first.)
 
 By default this sets up **all three dashboards**, sharing one access token — nothing else to configure before
 you're looking at a working Installer dashboard with Mod Manager and Server Manager already running alongside it.
@@ -27,7 +31,7 @@ you're looking at a working Installer dashboard with Mod Manager and Server Mana
 Want just the Installer for now, and to add the other two later yourself? Answer `advanced` at the prompt, or run:
 
 ```bash
-sudo ./install.sh --advanced
+sudo bash install.sh --advanced
 ```
 
 Either way, the very first thing `install.sh` prints is a link — **note it down**, it's only shown once:

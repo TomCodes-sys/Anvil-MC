@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — Anvil MC</title>
+<meta name="description" content="Frequently asked questions about Anvil MC: cost, requirements, backups, security, and troubleshooting.">
+<link rel="stylesheet" href="static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.24.0/dist/umd/lucide.js"></script>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark-wrap" style="position:relative; width:32px; height:32px; display:inline-block; flex-shrink:0;"><img src="assets/logo.png" alt="Anvil MC logo" class="brand-mark-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="brand-mark" style="display:none; position:absolute; inset:0;">⚒</span></span>
+      <span class="brand-text">Anvil MC</span>
+    </a>
+    <nav class="nav-links" id="nav-links">
+      <a class="nav-link" href="index.html">Home</a>
+      <a class="nav-link" href="download.html">Download</a>
+      <a class="nav-link" href="tutorial.html">Tutorial</a>
+      <a class="nav-link" href="prerequisites.html">Prerequisites</a>
+      <a class="nav-link" href="faq.html">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn-secondary btn-small" href="https://github.com/TomCodes-sys" target="_blank" rel="noopener"><svg class="icon-gh" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.98 5.24.98 11.52c0 4.94 3.2 9.13 7.65 10.6.56.1.76-.24.76-.54 0-.27-.01-1.16-.02-2.1-3.11.68-3.77-1.32-3.77-1.32-.5-1.28-1.23-1.62-1.23-1.62-1-.69.08-.67.08-.67 1.11.08 1.7 1.14 1.7 1.14.99 1.7 2.6 1.21 3.23.92.1-.72.39-1.21.7-1.49-2.48-.28-5.1-1.24-5.1-5.53 0-1.22.44-2.22 1.15-3-.11-.28-.5-1.42.11-2.96 0 0 .94-.3 3.08 1.15A10.6 10.6 0 0 1 12 6.1c.95 0 1.9.13 2.8.38 2.14-1.45 3.08-1.15 3.08-1.15.61 1.54.22 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.3-2.62 5.24-5.12 5.52.4.35.76 1.03.76 2.08 0 1.5-.01 2.71-.01 3.08 0 .3.2.65.77.54A10.53 10.53 0 0 0 23 11.52C23 5.24 18.27.5 12 .5z"/></svg><span class="long">GitHub</span></a>
+      <a class="btn-primary btn-small" href="download.html"><i data-lucide="download"></i>Download</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu"><i data-lucide="menu"></i></button>
+    </div>
+  </div>
+</header>
+
+<section class="section-tight">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="eyebrow">FAQ</div>
+      <h2>Frequently asked questions</h2>
+      <p>If your question isn't here, the <a href="tutorial.html" style="color:var(--cyan);">tutorial</a> and <a href="prerequisites.html" style="color:var(--cyan);">prerequisites</a> pages cover most of the rest.</p>
+    </div>
+
+    <div style="max-width:760px;" class="reveal">
+
+      <details class="faq-item" open>
+        <summary>Is Anvil MC free?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Yes — all three apps are free and open source. There's no license key, no paid tier, and no telemetry phoning home anywhere. You're running the code on your own hardware.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Do I need to know Docker or Linux?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">No. The Installer runs every Docker/apt command for you, and Server Manager handles updates the same way. The only Linux skill involved is pasting one command over SSH to kick off the install — everything after that is a browser. See <a href="prerequisites.html">Prerequisites</a> for the full breakdown of what is and isn't required.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can I run more than one Minecraft server?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Yes. Crafty itself supports multiple servers on one machine, and both Mod Manager and Server Manager are built around managing several at once — the Fleet Overview in Server Manager lists every server you're tracking with its version, mod count, and pending updates at a glance.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Is it safe to run these dashboards? Who can access them?</summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">The Installer and Server Manager both run as root and share one access token generated at install time — treat that token like a password. All three dashboards are meant to stay on your local network; none of them should be port-forwarded to the public internet. Mod Manager has no token by design since it only ever touches mod/plugin files, not system-level commands. If you ever land on an "Unauthorized" page, both token-gated dashboards also accept your regular Linux username/password (via PAM) as a fallback sign-in.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can players outside my house join my server?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Yes, but that's a separate step from anything Anvil does — you'd forward the Minecraft port (25565 by default) on your router to your server's local IP. The Anvil dashboards themselves should never be exposed this way; only the Minecraft server port itself.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>What happens if a setup step fails partway through?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Every step in the Installer is independent and safe to re-run — if Docker installation fails because of a network blip, just click it again once the issue's resolved. Nothing moves on to the next step automatically, so you always know exactly what has and hasn't run.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do backups actually work?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Anvil Server Manager uses <a href="https://restic.net/" target="_blank" rel="noopener">restic</a> under the hood — a well-established, encrypted, incremental backup tool. You point it at a local path (ideally a second disk) or an S3-compatible/Backblaze B2 bucket, and it can run on a schedule you set. Restoring always writes to a fresh staging folder rather than overwriting a live world, so a restore can never accidentally clobber something you didn't mean to touch.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can I uninstall cleanly if I change my mind?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Yes — the Installer has a Danger Zone with a per-component uninstall for Docker, Crafty, Cockpit, Mod Manager, and Server Manager, plus a self-destruct option for the Installer itself. Deleting Crafty's actual world data is a separate, explicit checkbox that only unlocks after you've downloaded a backup — it won't happen by accident.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Does it support Bedrock Edition servers?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Crafty Controller itself supports Bedrock servers, and the Installer opens the Bedrock port as part of firewall setup. Mod Manager is currently focused on Java Edition mods/plugins/datapacks (Modrinth and CurseForge), since Bedrock's add-on ecosystem works quite differently.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>I lost my access token — now what?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">SSH into the server and run <code>sudo /etc/anvil-installer/get-link.sh</code> — it reprints the full, clickable links for both the Installer and Server Manager (they share one token). Note it down somewhere this time — a notes app, a bookmark, anything — since it's not re-printed anywhere else automatically. No terminal access either? Both dashboards' sign-in page also accepts your regular Linux username/password (checked via PAM) as a fallback, no token needed.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Is this affiliated with Mojang, Microsoft, or Crafty Controller?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">No. Anvil MC is an independent, community project. Minecraft is a trademark of Mojang/Microsoft, and Crafty Controller is its own separate open-source project that Anvil builds around, not a part of.</div></div></div>
+      </details>
+
+      <details class="faq-item">
+        <summary>Where do I report a bug or request a feature?<i data-lucide="chevron-down" class="chev"></i></summary>
+        <div class="faq-content"><div class="faq-body-inner"><div class="faq-body">Each app has its own GitHub repository — open an issue on whichever one it concerns. Links are in the footer of every page, or on the <a href="download.html">Download</a> page.</div></div></div>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<section class="section-tight">
+  <div class="wrap">
+    <div class="cta-banner reveal">
+      <div>
+        <h2>Still have questions?</h2>
+        <p>Open an issue on whichever app's GitHub repo it concerns — links below.</p>
+      </div>
+      <a class="btn-primary" href="https://github.com/TomCodes-sys" target="_blank" rel="noopener"><svg class="icon-gh" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.98 5.24.98 11.52c0 4.94 3.2 9.13 7.65 10.6.56.1.76-.24.76-.54 0-.27-.01-1.16-.02-2.1-3.11.68-3.77-1.32-3.77-1.32-.5-1.28-1.23-1.62-1.23-1.62-1-.69.08-.67.08-.67 1.11.08 1.7 1.14 1.7 1.14.99 1.7 2.6 1.21 3.23.92.1-.72.39-1.21.7-1.49-2.48-.28-5.1-1.24-5.1-5.53 0-1.22.44-2.22 1.15-3-.11-.28-.5-1.42.11-2.96 0 0 .94-.3 3.08 1.15A10.6 10.6 0 0 1 12 6.1c.95 0 1.9.13 2.8.38 2.14-1.45 3.08-1.15 3.08-1.15.61 1.54.22 2.68.11 2.96.72.78 1.15 1.78 1.15 3 0 4.3-2.62 5.24-5.12 5.52.4.35.76 1.03.76 2.08 0 1.5-.01 2.71-.01 3.08 0 .3.2.65.77.54A10.53 10.53 0 0 0 23 11.52C23 5.24 18.27.5 12 .5z"/></svg>Visit GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-col" style="max-width:280px;">
+        <div class="brand" style="margin-bottom:10px;"><span class="brand-mark-wrap" style="position:relative; width:32px; height:32px; display:inline-block; flex-shrink:0;"><img src="assets/logo.png" alt="Anvil MC logo" class="brand-mark-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="brand-mark" style="display:none; position:absolute; inset:0;">⚒</span></span><span class="brand-text">Anvil MC</span></div>
+        <p style="color:var(--ink-dim); font-size:13px; line-height:1.6;">A free, open-source toolkit for self-hosting Minecraft on your own Ubuntu Server.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="download.html">Download</a>
+        <a href="tutorial.html">Tutorial</a>
+        <a href="prerequisites.html">Prerequisites</a>
+        <a href="faq.html">FAQ</a>
+      </div>
+      <div class="footer-col">
+        <h4>Source</h4>
+        <a href="https://github.com/TomCodes-sys/Anvil-MC" target="_blank" rel="noopener">Server Installer</a>
+        <a href="https://github.com/TomCodes-sys/Anvil-MC" target="_blank" rel="noopener">Mod Manager</a>
+        <a href="https://github.com/TomCodes-sys/Anvil-MC" target="_blank" rel="noopener">Server Manager</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>Anvil MC is an independent project and isn't affiliated with Mojang, Microsoft, or Crafty Controller.</p>
+      <p>Built for the home-lab crowd.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="static/script.js"></script>
+</body>
+</html>
