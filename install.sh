@@ -2,12 +2,12 @@
 # AnvilMC — single install script for the whole ecosystem.
 #
 # Run this ONCE over SSH on the Ubuntu Server box that will run Crafty
-# Controller. By default it sets up all three dashboards — Anvil Server
-# Installer, Anvil Mod Manager, and Anvil Server Manager — sharing one
-# access token, so there's nothing else to configure before you're looking
-# at a working dashboard. Pass --advanced (or answer "advanced" at the
-# prompt) to install just the Installer dashboard and add Mod Manager /
-# Server Manager later, one at a time, from its own wizard.
+# Controller. Sets up all three dashboards — Anvil Server Installer, Anvil
+# Mod Manager, and Anvil Server Manager — sharing one access token, so
+# there's nothing else to configure before you're looking at a working
+# dashboard. Safe to re-run any time (idempotent): stops and replaces
+# anything left over from a previous attempt, including the old separate-repo
+# installs this project used before AnvilMC became one monorepo.
 #
 # Docker, Crafty Controller, and Cockpit are NOT installed by this script —
 # those stay as deliberate, one-click steps inside the Installer's own
@@ -48,12 +48,44 @@ else
 fi
 
 echo ""
-echo "[1/6] Installing shared prerequisites (python3, pip, venv, git, curl,"
+echo "[1/7] Clearing out anything left over from a previous install attempt..."
+# Covers three real cases: (1) re-running this script after a previous run
+# got partway through, (2) the old separate-repo era of this project (before
+# AnvilMC became one monorepo), where each app had its own bootstrap.sh and
+# its own /opt/anvil-<name> folder, and (3) a genuinely ancient install under
+# this project's original name. Any of these could still be holding onto
+# ports 8090/5151/6161, which is the single most common reason a fresh
+# install's dashboards silently "don't load" — the OLD process is still the
+# one answering on that port, not the new one this script just set up.
+for svc in anvil-installer anvil-mod-manager anvil-server-manager mc-dashboard; do
+  $SUDO systemctl disable --now "$svc" > /dev/null 2>&1 || true
+  $SUDO rm -f "/etc/systemd/system/${svc}.service"
+done
+$SUDO systemctl daemon-reload
+for old_dir in /opt/anvil-installer /opt/anvil-mod-manager /opt/anvil-server-manager /opt/mc-dashboard; do
+  if [ -d "$old_dir" ]; then
+    echo "    Removing old install at $old_dir ..."
+    $SUDO rm -rf "$old_dir"
+  fi
+done
+# Anything still bound to these ports at this point isn't one of our own
+# services (those were just stopped above) — flag it rather than silently
+# fighting over the port later.
+for port in 8090 5151 6161; do
+  if $SUDO ss -ltnp 2>/dev/null | grep -q ":$port "; then
+    echo "    WARNING: something else is already listening on port $port:"
+    $SUDO ss -ltnp 2>/dev/null | grep ":$port " | sed 's/^/      /'
+    echo "    This install will likely fail to bind that port until it's stopped."
+  fi
+done
+
+echo ""
+echo "[2/7] Installing shared prerequisites (python3, pip, venv, git, curl,"
 echo "      restic, smartmontools, lm-sensors)..."
 $SUDO apt-get update -qq
 $SUDO apt-get install -y -qq python3 python3-venv python3-pip git curl restic smartmontools lm-sensors > /dev/null
 
-echo "[2/6] Copying AnvilMC to $INSTALL_DIR ..."
+echo "[3/7] Copying AnvilMC to $INSTALL_DIR ..."
 $SUDO mkdir -p "$INSTALL_DIR"
 # Copies the whole checkout (including .git, if present) so the Installer's
 # "Check for updates" can later `git pull` this one clone and restart all
@@ -64,14 +96,14 @@ $SUDO rm -rf "$INSTALL_DIR/installer/venv" "$INSTALL_DIR/installer/.venv" \
              "$INSTALL_DIR/mod-manager/venv" "$INSTALL_DIR/mod-manager/.venv" \
              "$INSTALL_DIR/server-manager/venv" "$INSTALL_DIR/server-manager/.venv"
 
-echo "[3/6] Setting ownership (Installer + Server Manager as root, since they"
+echo "[4/7] Setting ownership (Installer + Server Manager as root, since they"
 echo "      genuinely need it for apt/docker/systemctl; Mod Manager as '$INSTALL_USER',"
 echo "      since it only ever touches mod/plugin files and shouldn't need more)..."
 $SUDO chown -R root:root "$INSTALL_DIR/installer" "$INSTALL_DIR/server-manager"
 $SUDO mkdir -p "$INSTALL_DIR/mod-manager/data"
 $SUDO chown -R "$INSTALL_USER":"$INSTALL_USER" "$INSTALL_DIR/mod-manager"
 
-echo "[4/6] Shared token, sessions, and PAM login (one login for all three)..."
+echo "[5/7] Shared token, sessions, and PAM login (one login for all three)..."
 $SUDO mkdir -p "$ETC_DIR"
 # 2775 + setgid: root keeps full control, "anvilmc" group members (which
 # includes $INSTALL_USER, added below) can create/update files here too —
@@ -143,10 +175,10 @@ install_component() {
   $SUDO systemctl restart "$service_name"
 }
 
-echo "[5/6] Installer dashboard..."
+echo "[6/7] Installer dashboard..."
 install_component "Anvil Server Installer" "installer" "root" "anvil-installer.service"
 
-echo "[6/6] Anvil Mod Manager + Anvil Server Manager..."
+echo "[7/7] Anvil Mod Manager + Anvil Server Manager..."
 install_component "Anvil Mod Manager" "mod-manager" "$INSTALL_USER" "anvil-mod-manager.service"
 install_component "Anvil Server Manager" "server-manager" "root" "anvil-server-manager.service"
 
