@@ -17,7 +17,7 @@ SSH into the Ubuntu Server box that will run Crafty, then:
 
 ```bash
 git clone https://github.com/TomCodes-sys/Anvil-MC.git
-cd AnvilMC
+cd Anvil-MC
 sudo ./install.sh
 ```
 
