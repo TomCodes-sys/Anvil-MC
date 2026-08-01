@@ -21,18 +21,6 @@ const STEP_DEFS = [
     title: 'Install Cockpit',
     desc: 'Web-based system admin panel for the Ubuntu box itself, on port 9090 — includes Cockpit Explorer (a built-in file-manager tab) automatically, no separate step needed.',
   },
-  {
-    id: 'mod_manager',
-    title: 'Install Anvil Mod Manager (optional)',
-    desc: 'A companion dashboard for finding, installing, and updating mods/plugins/datapacks on your Crafty server from Modrinth & CurseForge. Runs on port 5151. Skip this if you\'d rather manage mods by hand.',
-    optional: true,
-  },
-  {
-    id: 'server_manager',
-    title: 'Install Anvil Server Manager (optional)',
-    desc: 'A companion dashboard for fleet overview, backups, health monitoring, crash recovery, RCON, whitelist/ops/bans, and log analysis across all your Crafty servers. Runs on port 6161. Skip this if you don\'t need it yet — you can always install it later.',
-    optional: true,
-  },
 ];
 
 let currentIndex = 0;
@@ -192,63 +180,15 @@ function renderActiveStep() {
 
   const runBtn = document.getElementById('run-current-btn');
   const nextBtn = document.getElementById('next-btn');
-  const openModManagerBtn = document.getElementById('open-mod-manager-btn');
-  const openServerManagerBtn = document.getElementById('open-server-manager-btn');
   runBtn.disabled = false;
   runBtn.textContent = isDone ? 'Run again' : 'Run this step';
   nextBtn.hidden = !isDone || currentIndex === STEP_DEFS.length - 1;
-
-  if (step.id === 'mod_manager') {
-    openModManagerBtn.hidden = !isDone;
-    if (isDone) refreshModManagerLink();
-  } else {
-    openModManagerBtn.hidden = true;
-  }
-
-  if (step.id === 'server_manager') {
-    openServerManagerBtn.hidden = !isDone;
-    if (isDone) refreshServerManagerLink();
-  } else {
-    openServerManagerBtn.hidden = true;
-  }
 
   const miniConsole = document.getElementById('mini-console');
   if (!isDone) {
     miniConsole.classList.remove('visible');
     miniConsole.innerHTML = '';
   }
-}
-
-async function refreshModManagerLink() {
-  try {
-    const res = await fetch('/api/mod_manager/status' + withToken());
-    const data = await res.json();
-    const btn = document.getElementById('open-mod-manager-btn');
-    if (data.installed) {
-      btn.href = data.url;
-      btn.classList.remove('disabled');
-      btn.textContent = data.running ? 'Open Anvil Mod Manager →' : 'Anvil Mod Manager installed (service not running)';
-    } else {
-      btn.classList.add('disabled');
-      btn.textContent = 'Open Anvil Mod Manager →';
-    }
-  } catch (e) { /* ignore */ }
-}
-
-async function refreshServerManagerLink() {
-  try {
-    const res = await fetch('/api/server_manager/status' + withToken());
-    const data = await res.json();
-    const btn = document.getElementById('open-server-manager-btn');
-    if (data.installed) {
-      btn.href = data.url;
-      btn.classList.remove('disabled');
-      btn.textContent = data.running ? 'Open Anvil Server Manager →' : 'Anvil Server Manager installed (service not running)';
-    } else {
-      btn.classList.add('disabled');
-      btn.textContent = 'Open Anvil Server Manager →';
-    }
-  } catch (e) { /* ignore */ }
 }
 
 function logLine(text, cls) {
@@ -303,14 +243,6 @@ function runCurrentStep() {
 
         if (step.id === 'crafty') {
           getCreds();
-        }
-        if (step.id === 'mod_manager') {
-          document.getElementById('open-mod-manager-btn').hidden = false;
-          refreshModManagerLink();
-        }
-        if (step.id === 'server_manager') {
-          document.getElementById('open-server-manager-btn').hidden = false;
-          refreshServerManagerLink();
         }
       } else {
         stateEl.textContent = 'failed — try again';
@@ -411,8 +343,8 @@ function updateTopbarLinks(data) {
   const fullMod = document.getElementById('link-full-mod-manager');
   const fullServer = document.getElementById('link-full-server-manager');
   if (fullCrafty) fullCrafty.textContent = ip ? `https://${ip}:8443` : 'not available yet — install Crafty first';
-  if (fullMod) fullMod.textContent = ip ? `http://${ip}:5151/` : 'not available yet — install Anvil Mod Manager first';
-  if (fullServer) fullServer.textContent = ip ? `http://${ip}:6161/` : 'not available yet — install Anvil Server Manager first';
+  if (fullMod) fullMod.textContent = ip ? `http://${ip}:5151/` : 'not available yet';
+  if (fullServer) fullServer.textContent = ip ? `http://${ip}:6161/` : 'not available yet';
 }
 
 async function refreshStatus() {
@@ -423,8 +355,6 @@ async function refreshStatus() {
     ['firewall', 'docker', 'crafty', 'cockpit'].forEach(id => {
       if (data[id]) doneSteps.add(id);
     });
-    if (data.mod_manager && data.mod_manager.installed) doneSteps.add('mod_manager');
-    if (data.server_manager && data.server_manager.installed) doneSteps.add('server_manager');
     document.getElementById('local-ip').textContent = data.local_ip || '--';
     document.getElementById('mac-address').textContent = data.mac_address || '--';
     updateTopbarLinks(data);

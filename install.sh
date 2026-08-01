@@ -47,26 +47,6 @@ else
   INSTALL_USER="$(whoami)"
 fi
 
-# --- Full (default) vs advanced mode ---------------------------------------
-MODE="full"
-for arg in "$@"; do
-  case "$arg" in
-    --advanced) MODE="advanced" ;;
-  esac
-done
-if [ "$MODE" = "full" ] && [ -t 0 ]; then
-  echo ""
-  echo "Set up everything now (Installer + Mod Manager + Server Manager, all"
-  echo "running and ready), or just the Installer dashboard, and add the other"
-  echo "two later yourself from its wizard?"
-  read -r -p "[everything/advanced] (default: everything) " ANSWER
-  case "$ANSWER" in
-    a*|A*) MODE="advanced" ;;
-  esac
-fi
-echo ""
-echo "Mode: $MODE"
-
 echo ""
 echo "[1/6] Installing shared prerequisites (python3, pip, venv, git, curl,"
 echo "      restic, smartmontools, lm-sensors)..."
@@ -166,28 +146,21 @@ install_component() {
 echo "[5/6] Installer dashboard..."
 install_component "Anvil Server Installer" "installer" "root" "anvil-installer.service"
 
-if [ "$MODE" = "full" ]; then
-  echo "[6/6] Anvil Mod Manager + Anvil Server Manager..."
-  install_component "Anvil Mod Manager" "mod-manager" "$INSTALL_USER" "anvil-mod-manager.service"
-  install_component "Anvil Server Manager" "server-manager" "root" "anvil-server-manager.service"
+echo "[6/6] Anvil Mod Manager + Anvil Server Manager..."
+install_component "Anvil Mod Manager" "mod-manager" "$INSTALL_USER" "anvil-mod-manager.service"
+install_component "Anvil Server Manager" "server-manager" "root" "anvil-server-manager.service"
 
-  # The app itself runs as "$INSTALL_USER" (not root) so it only has the same
-  # filesystem access as Crafty — but the "Update now" button needs to
-  # restart its own systemd unit afterward. A narrow, single-command sudo
-  # exception, same reasoning as before.
-  if [ "$INSTALL_USER" != "root" ]; then
-    SYSTEMCTL_PATH="$(command -v systemctl)"
-    echo "$INSTALL_USER ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart anvil-mod-manager" | \
-      $SUDO tee /etc/sudoers.d/anvil-mod-manager-restart > /dev/null
-    $SUDO chmod 440 /etc/sudoers.d/anvil-mod-manager-restart
-    $SUDO visudo -c -f /etc/sudoers.d/anvil-mod-manager-restart > /dev/null || \
-      echo "  WARNING: the generated sudoers rule failed validation — Mod Manager's restart-on-update may not work. Check /etc/sudoers.d/anvil-mod-manager-restart"
-  fi
-else
-  echo "[6/6] Skipping Mod Manager / Server Manager (advanced mode)."
-  echo "      Install them any time from the Installer dashboard's own wizard —"
-  echo "      their source is already sitting right there in $INSTALL_DIR, so"
-  echo "      that step just sets up the venv/service, no separate download."
+# The app itself runs as "$INSTALL_USER" (not root) so it only has the same
+# filesystem access as Crafty — but the "Update now" button needs to
+# restart its own systemd unit afterward. A narrow, single-command sudo
+# exception, same reasoning as before.
+if [ "$INSTALL_USER" != "root" ]; then
+  SYSTEMCTL_PATH="$(command -v systemctl)"
+  echo "$INSTALL_USER ALL=(root) NOPASSWD: $SYSTEMCTL_PATH restart anvil-mod-manager" | \
+    $SUDO tee /etc/sudoers.d/anvil-mod-manager-restart > /dev/null
+  $SUDO chmod 440 /etc/sudoers.d/anvil-mod-manager-restart
+  $SUDO visudo -c -f /etc/sudoers.d/anvil-mod-manager-restart > /dev/null || \
+    echo "  WARNING: the generated sudoers rule failed validation — Mod Manager's restart-on-update may not work. Check /etc/sudoers.d/anvil-mod-manager-restart"
 fi
 
 IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}')
@@ -200,14 +173,6 @@ echo ""
 echo "  Open this on a browser on the SAME network:"
 echo ""
 echo "    http://$IP:8090/?token=$TOKEN"
-if [ "$MODE" = "full" ]; then
-echo ""
-echo "  Mod Manager and Server Manager are already up too, using the SAME"
-echo "  token — the Installer's Home tab links straight to both:"
-echo ""
-echo "    http://$IP:5151/?token=$TOKEN"
-echo "    http://$IP:6161/?token=$TOKEN"
-fi
 echo ""
 echo "  >>> NOTE THIS LINK DOWN NOW — it's only printed here once. Recover it"
 echo "      any time with:"
@@ -215,8 +180,11 @@ echo ""
 echo "        sudo /etc/anvilmc/get-link.sh"
 echo ""
 echo "      That works even after a reboot changes the server's IP. If you"
-echo "      don't have terminal access, every dashboard's sign-in page also"
-echo "      accepts your Linux username/password as a fallback (via PAM)."
+echo "      don't have terminal access, the sign-in page also accepts your"
+echo "      Linux username/password as a fallback (via PAM)."
+echo ""
+echo "  Mod Manager and Server Manager are already running too, using the same"
+echo "  token — open the Installer link above and use its Home tab to reach them."
 echo ""
 echo "  Do NOT port-forward any of these ports to the internet — Installer"
 echo "  and Server Manager can run root commands on this machine. Keep"
