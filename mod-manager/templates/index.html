@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anvil Mod Manager — Crafty Mod Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.24.0/dist/umd/lucide.js"></script>
+</head>
+<body>
+
+<div class="crafty-gate" id="crafty-gate">
+  <div class="crafty-gate-card">
+    <div class="brand-mark" aria-hidden="true">&gt;_</div>
+    <h1>Connect Crafty Controller to continue</h1>
+    <p class="hint" style="margin-top:0">Anvil Mod Manager needs a Crafty Controller API token before it can find your
+      servers or install anything. Enter it below to unlock the dashboard — or just try Preview Mode with a demo
+      server, no token required.</p>
+
+    <div class="crafty-howto">
+      <p class="hint" style="margin:0 0 4px"><strong>Getting your API token:</strong></p>
+      <ol class="crafty-howto-list">
+        <li>Log into Crafty's web UI</li>
+        <li>Click your username (top right) → <strong>Profile</strong></li>
+        <li>Scroll to the <strong>API Keys</strong> section → click <strong>Generate Key</strong></li>
+        <li>Tick <strong>superuser</strong> if you want it to see every server, not just ones shared to that user</li>
+        <li>Copy the token immediately — Crafty only shows it once — and paste it below</li>
+      </ol>
+    </div>
+
+    <label>Crafty URL
+      <div class="input-with-button">
+        <input id="gate-crafty-url" type="text" placeholder="https://192.168.1.50:8443">
+        <button id="gate-btn-detect-crafty-url" class="btn-ghost btn-small" type="button" title="Detect this machine's local IP">Auto-detect</button>
+      </div>
+    </label>
+    <label>API token
+      <input id="gate-crafty-token" type="password" placeholder="paste token here">
+    </label>
+    <button id="gate-btn-save-crafty" class="btn-primary">Save &amp; continue</button>
+    <p class="status-line" id="gate-crafty-status"></p>
+
+    <div class="crafty-gate-divider"><span>or</span></div>
+    <button id="gate-btn-preview" class="btn-ghost" type="button">Just exploring? Try Preview Mode instead</button>
+  </div>
+</div>
+
+<div class="scaffold gate-pending">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">&gt;_</span>
+      <div class="brand-text">
+        <span class="brand-title">anvil mod manager</span>
+        <span class="brand-sub">mods, plugins &amp; datapacks for crafty controller</span>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <span class="tab-indicator" id="tab-indicator"></span>
+      <button class="tab active" data-tab="setup"><i data-lucide="server"></i>Server Setup</button>
+      <button class="tab" data-tab="browse"><i data-lucide="search"></i>Browse &amp; Install</button>
+      <button class="tab" data-tab="installed"><i data-lucide="package-check"></i>Installed</button>
+      <button class="tab" data-tab="modpack"><i data-lucide="boxes"></i>Modpack</button>
+      <button class="tab" data-tab="settings"><i data-lucide="settings"></i>Settings</button>
+    </nav>
+    <span class="topbar-health" id="crafty-health" title="Crafty connection status">
+      <span class="link-dot" id="dot-crafty-health"></span>Crafty
+    </span>
+  </header>
+
+  <div class="preview-banner" id="preview-banner" style="display:none">
+    <span class="preview-dot"></span>
+    <span id="preview-banner-text"><strong>Preview mode</strong> — search is live, but installs, updates and removals are simulated. Nothing is written to or deleted from disk.</span>
+    <button id="btn-goto-crafty-from-banner" class="btn-secondary" style="display:none">Connect Crafty now</button>
+    <button id="btn-exit-preview" class="btn-ghost">Turn off</button>
+  </div>
+
+  <div class="update-banner" id="update-banner" style="display:none">
+    <i data-lucide="circle-arrow-up"></i>
+    <span id="update-banner-text">Update available.</span>
+    <a id="update-banner-link" class="btn-ghost" href="#" target="_blank" rel="noopener">View changes</a>
+    <button id="update-banner-btn" class="btn-secondary" onclick="applySelfUpdate()">Update now</button>
+  </div>
+
+  <main class="content">
+
+    <!-- SERVER SETUP -->
+    <section class="panel active" id="panel-setup">
+      <div class="panel-head">
+        <h1>Point this at your server</h1>
+        <p>Pick the server from the list Crafty already knows about — its folder, version, and loader are detected automatically. No manual browsing needed.</p>
+      </div>
+
+      <div class="card demo-card">
+        <div class="demo-card-text">
+          <h2>Just want to try it first?</h2>
+          <p class="hint" style="margin:0">Skip picking a real folder. This loads a fake "Preview Server" on Minecraft 1.20.1 / Fabric so you can search and click Install without touching your disk.</p>
+        </div>
+        <button id="btn-load-demo" class="btn-secondary"><i data-lucide="flask-conical"></i>Load demo server</button>
+      </div>
+
+      <div class="card" id="crafty-pick-card">
+        <h2><i data-lucide="server"></i>Pick your server</h2>
+        <p class="hint" style="margin-top:0" id="crafty-pick-hint">Loading servers from Crafty…</p>
+
+        <div class="crafty-pick-not-configured" id="crafty-pick-not-configured" style="display:none">
+          <p class="hint" style="margin-top:0">Crafty isn't connected yet. Head to <strong>Settings</strong> and add your Crafty URL + API token — takes under a minute — then come back to this tab.</p>
+          <button class="btn-secondary" id="btn-goto-crafty-settings">Go to Settings</button>
+        </div>
+
+        <div id="crafty-pick-configured" style="display:none">
+          <p class="hint" style="margin-top:0">Every server Crafty knows about shows up as a button below — click one to switch to it (imports it automatically first time). The colored dot shows whether it's currently running in Crafty.</p>
+          <div class="server-button-grid" id="crafty-pick-buttons"></div>
+          <p class="status-line" id="crafty-pick-status"></p>
+        </div>
+      </div>
+
+      <details class="card" id="manual-browse-card">
+        <summary><i data-lucide="folder-cog"></i> Advanced: point at a folder manually</summary>
+        <p class="hint">Only needed if Crafty isn't installed via the Anvil Server Installer's default layout, or you're managing a server Crafty doesn't know about.</p>
+        <div class="card-row">
+          <div class="card">
+            <h2>1. Locate the server folder</h2>
+            <div class="path-bar">
+              <button id="btn-up" class="btn-ghost" title="Up one level"><i data-lucide="arrow-up"></i></button>
+              <input id="path-input" type="text" placeholder="/var/opt/minecraft/crafty/servers/&lt;server-id&gt;">
+              <button id="btn-go" class="btn-secondary">Go</button>
+            </div>
+            <div class="dir-list" id="dir-list"></div>
+            <button id="btn-select-server" class="btn-primary" disabled>Use this folder</button>
+          </div>
+
+          <div class="card">
+            <h2>2. Confirm version &amp; loader</h2>
+            <p class="hint" id="detect-hint">Select a folder to auto-detect.</p>
+            <label>Server name
+              <input id="server-name" type="text" placeholder="Survival SMP">
+            </label>
+            <label>Minecraft version
+              <input id="mc-version" type="text" placeholder="1.20.1">
+            </label>
+            <label>Loader / platform
+              <select id="loader-select">
+                <optgroup label="Vanilla">
+                  <option value="vanilla">Vanilla (datapacks only)</option>
+                </optgroup>
+                <optgroup label="Mod loaders">
+                  <option value="fabric">Fabric</option>
+                  <option value="quilt">Quilt</option>
+                  <option value="forge">Forge</option>
+                  <option value="neoforge">NeoForge</option>
+                </optgroup>
+                <optgroup label="Plugin platforms">
+                  <option value="paper">Paper</option>
+                  <option value="purpur">Purpur</option>
+                  <option value="spigot">Spigot</option>
+                  <option value="bukkit">Bukkit</option>
+                  <option value="folia">Folia</option>
+                </optgroup>
+              </select>
+            </label>
+            <label>World folder (for datapacks)
+              <input id="world-name" type="text" placeholder="world">
+            </label>
+            <button id="btn-save-config" class="btn-primary">Save server profile</button>
+            <p class="status-line" id="setup-status"></p>
+
+            <label style="margin-top:14px">Link to a Crafty server (optional, for live running-status)
+              <select id="crafty-link-select"><option value="">— not linked —</option></select>
+            </label>
+            <div class="crafty-link-row">
+              <button id="btn-auto-detect-crafty" class="btn-secondary btn-small">Auto-detect all</button>
+              <span class="crafty-link-hint" id="crafty-link-hint"></span>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+
+    <!-- BROWSE & INSTALL -->
+    <section class="panel" id="panel-browse">
+      <div class="panel-head">
+        <h1>Browse &amp; install</h1>
+        <p>Results are filtered to <strong id="active-server-label">no server selected</strong>. Only files built for that exact version (and loader/platform, for mods and plugins) will show up.</p>
+      </div>
+
+      <div class="downloading-to-banner" id="downloading-to-banner">
+        <i data-lucide="download"></i>
+        <span>Downloading to: <strong id="downloading-to-name">no server selected</strong></span>
+        <span id="downloading-to-status"></span>
+      </div>
+
+      <div class="browse-layout">
+        <aside class="filter-sidebar">
+          <div class="filter-group">
+            <div class="filter-group-head">
+              <h3>Content</h3>
+            </div>
+            <div class="segmented segmented-block" id="type-toggle">
+              <button class="seg active" data-type="mod"><i data-lucide="box"></i>Mods</button>
+              <button class="seg" data-type="plugin"><i data-lucide="plug"></i>Plugins</button>
+              <button class="seg" data-type="datapack"><i data-lucide="package"></i>Datapacks</button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-head">
+              <h3>Source</h3>
+            </div>
+            <div class="segmented segmented-block" id="source-toggle">
+              <button class="seg active" data-source="modrinth">Modrinth</button>
+              <button class="seg" data-source="curseforge">CurseForge</button>
+            </div>
+          </div>
+
+          <div class="filter-group" id="loader-filter-group">
+            <div class="filter-group-head">
+              <h3 id="loader-filter-title">Loader</h3>
+            </div>
+            <div class="filter-checks" id="loader-checks"></div>
+          </div>
+
+          <div class="filter-group">
+            <div class="filter-group-head collapsible" id="version-filter-toggle">
+              <h3>Game version</h3>
+              <i data-lucide="chevron-down" class="chevron"></i>
+            </div>
+            <div class="version-search">
+              <input id="version-search-input" type="text" placeholder="Search versions...">
+            </div>
+            <div class="filter-checks version-checks" id="version-checks"></div>
+          </div>
+        </aside>
+
+        <div class="browse-main">
+          <div class="browse-controls">
+            <input id="search-input" type="text" placeholder="Search for content...">
+            <button id="btn-search" class="btn-primary"><i data-lucide="search"></i>Search</button>
+          </div>
+          <p class="status-line" id="search-status"></p>
+
+          <div class="results-grid" id="results-grid"></div>
+
+          <div class="pagination" id="pagination" style="display:none">
+            <button class="btn-secondary" id="page-prev"><i data-lucide="chevron-left"></i>Prev</button>
+            <div class="page-numbers" id="page-numbers"></div>
+            <button class="btn-secondary" id="page-next">Next<i data-lucide="chevron-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSTALLED -->
+    <section class="panel" id="panel-installed">
+      <div class="panel-head">
+        <h1>Installed on <span id="installed-server-label">this server</span></h1>
+        <p>Currently targeting Minecraft <strong id="installed-mc-version">—</strong> / <strong id="installed-loader">—</strong>.
+          After you update the server jar, revisit <em>Server Setup</em> to bump the version, then hit Check for Updates below.</p>
+      </div>
+      <div class="installed-actions-row">
+        <button id="btn-check-updates" class="btn-primary"><i data-lucide="refresh-cw"></i>Check for updates</button>
+        <button id="btn-update-all" class="btn-secondary" style="display:none"><i data-lucide="download"></i>Update all</button>
+        <button id="btn-retry-failed" class="btn-ghost" style="display:none"><i data-lucide="rotate-ccw"></i>Retry failed items</button>
+        <button id="btn-restart-server" class="btn-ghost" title="Restart the server through Crafty's API"><i data-lucide="power"></i>Restart server</button>
+      </div>
+      <p class="status-line" id="update-status"></p>
+
+      <h3 class="group-label">Mods</h3>
+      <div class="installed-list" id="installed-mods"></div>
+      <h3 class="group-label">Plugins</h3>
+      <div class="installed-list" id="installed-plugins"></div>
+      <h3 class="group-label">Datapacks</h3>
+      <div class="installed-list" id="installed-datapacks"></div>
+
+      <div id="untracked-section" style="display:none">
+        <h3 class="group-label">Found on disk, not tracked yet</h3>
+        <p class="hint" style="margin-top:-4px">These files are in the mods/plugins folder but weren't installed through this dashboard — dropped in by hand, or from before this tool was set up. Add them to tracking to see update checks; unrecognized files still get added so they're not invisible, they just won't show updates.</p>
+        <div class="installed-list" id="untracked-list"></div>
+      </div>
+    </section>
+
+    <!-- MODPACK -->
+    <section class="panel" id="panel-modpack">
+      <div class="panel-head">
+        <h1>Modpack import &amp; export</h1>
+        <p>Import every mod from a Modrinth modpack (.mrpack) in one go, or export everything currently installed on <span id="modpack-server-label">this server</span> as a shareable pack.</p>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="download-cloud"></i>Import a modpack</h2>
+        <p class="hint" style="margin-top:0">Paste a Modrinth modpack page URL or a direct <code>.mrpack</code> link, or upload a <code>.mrpack</code> file. Client-only files are skipped automatically.</p>
+        <label>Modrinth modpack URL or .mrpack link
+          <input id="modpack-url" type="text" placeholder="https://modrinth.com/modpack/... or a direct .mrpack URL">
+        </label>
+        <label>...or upload a .mrpack file
+          <input id="modpack-file" type="file" accept=".mrpack,.zip">
+        </label>
+        <button id="btn-modpack-import" class="btn-primary"><i data-lucide="upload"></i>Import modpack</button>
+        <p class="status-line" id="modpack-import-status"></p>
+        <div id="modpack-import-results"></div>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="upload-cloud"></i>Export installed mods</h2>
+        <p class="hint" style="margin-top:0">Builds a <code>.mrpack</code> from everything currently installed. Modrinth-sourced mods are re-resolved to their download links; CurseForge-only mods are listed in a text note inside the pack since they can't legally be redistributed.</p>
+        <button id="btn-modpack-export" class="btn-secondary"><i data-lucide="download"></i>Download .mrpack</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel" id="panel-settings">
+      <div class="panel-head">
+        <h1>Settings</h1>
+        <p>CurseForge requires a personal API key. Grab one free at <a href="https://console.curseforge.com/" target="_blank" rel="noopener">console.curseforge.com</a> (Create API Key, "Core" API).</p>
+      </div>
+      <div class="card">
+        <label>CurseForge API key
+          <input id="cf-key" type="password" placeholder="paste key here">
+        </label>
+        <button id="btn-save-key" class="btn-primary">Save key</button>
+        <p class="status-line" id="settings-status"></p>
+      </div>
+
+      <div class="card">
+        <h2><i data-lucide="power"></i>Crafty Controller API</h2>
+        <p class="hint" style="margin-top:0">Connect Crafty once here — it powers the restart hook, the "pick your server" dropdown on Server Setup, live running-status dots, and blocking mod/plugin downloads while a server is running.</p>
+
+        <div class="crafty-howto">
+          <p class="hint" style="margin:0 0 4px"><strong>Getting your API token:</strong></p>
+          <ol class="crafty-howto-list">
+            <li>Log into Crafty's web UI</li>
+            <li>Click your username (top right) → <strong>Profile</strong></li>
+            <li>Scroll to the <strong>API Keys</strong> section → click <strong>Generate Key</strong></li>
+            <li>Tick <strong>superuser</strong> if you want it to see every server, not just ones shared to that user</li>
+            <li>Copy the token immediately — Crafty only shows it once — and paste it below</li>
+          </ol>
+        </div>
+
+        <label>Crafty URL
+          <div class="input-with-button">
+            <input id="crafty-url" type="text" placeholder="https://192.168.1.50:8443">
+            <button id="btn-detect-crafty-url" class="btn-ghost btn-small" type="button" title="Detect this machine's local IP">Auto-detect</button>
+          </div>
+        </label>
+        <label>API token
+          <input id="crafty-token" type="password" placeholder="paste token here">
+        </label>
+        <button id="btn-save-crafty" class="btn-primary">Save Crafty settings</button>
+        <p class="status-line" id="crafty-settings-status"></p>
+        <details class="crafty-advanced">
+          <summary>Advanced: Crafty servers folder</summary>
+          <p class="hint">Where each Crafty server's folder lives on this machine, so picking a server from the
+            dropdown on Server Setup can find its files without you browsing manually. Defaults to
+            <code>/opt/crafty/servers</code> — the path the Anvil Server Installer uses. Only change this if your
+            Crafty install uses a different layout.</p>
+          <label>Crafty servers folder
+            <input id="crafty-servers-root" type="text" placeholder="/opt/crafty/servers">
+          </label>
+        </details>
+        <p class="hint">Which Crafty server each saved profile below maps to is set per-server in the <strong>Saved servers</strong> card on the Server Setup tab, not here.</p>
+      </div>
+
+      <div class="card">
+        <h2>Preview mode</h2>
+        <p class="hint" style="margin-top:0">Search stays live against Modrinth / CurseForge. Install, update and remove actions are simulated instead of touching real files — safe to click through freely.</p>
+        <label class="toggle-row">
+          <input type="checkbox" id="preview-toggle">
+          <span>Enable preview mode</span>
+        </label>
+        <p class="status-line" id="preview-status"></p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Changelog preview modal -->
+<div class="modal-overlay" id="changelog-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="changelog-title">Changelog</h3>
+      <button class="btn-ghost" id="changelog-close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="modal-body" id="changelog-body">Loading...</div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="changelog-cancel">Cancel</button>
+      <button class="btn-primary" id="changelog-confirm-update">Update now</button>
+    </div>
+  </div>
+</div>
+
+<template id="tpl-result-card">
+  <article class="result-card">
+    <img class="result-icon" alt="">
+    <div class="result-body">
+      <h3 class="result-title"></h3>
+      <p class="result-author-line"><span class="result-author"></span></p>
+      <p class="result-desc"></p>
+      <div class="result-tags"></div>
+    </div>
+    <div class="result-side">
+      <span class="result-downloads"></span>
+      <button class="btn-install">Install</button>
+    </div>
+  </article>
+</template>
+
+<template id="tpl-tag">
+  <span class="tag-chip"><span class="tag-icon"></span><span class="tag-label"></span></span>
+</template>
+
+<template id="tpl-installed-row">
+  <article class="installed-row">
+    <img class="installed-icon" alt="">
+    <div class="installed-main">
+      <span class="installed-title"></span>
+      <span class="installed-version"></span>
+      <span class="badge source-badge"></span>
+      <span class="badge preview-badge" style="display:none">preview</span>
+      <span class="badge modpack-badge" style="display:none"></span>
+    </div>
+    <div class="installed-status">
+      <span class="status-pill"></span>
+      <span class="status-message"></span>
+      <span class="conflict-badge" style="display:none" title=""><i data-lucide="alert-triangle"></i>conflict</span>
+    </div>
+    <div class="installed-actions">
+      <button class="btn-changelog" style="display:none"><i data-lucide="scroll-text"></i>Changelog</button>
+      <button class="btn-update" style="display:none">Update</button>
+      <button class="btn-revert" style="display:none" title="Restore the previous version from .backups/"><i data-lucide="undo-2"></i>Revert</button>
+      <button class="btn-uninstall">Remove</button>
+    </div>
+  </article>
+</template>
+
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

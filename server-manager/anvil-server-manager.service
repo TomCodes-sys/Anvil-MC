@@ -1,0 +1,13 @@
+[Unit]
+Description=Anvil Server Manager Dashboard
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/anvilmc/server-manager
+ExecStart=/opt/anvilmc/server-manager/venv/bin/python3 /opt/anvilmc/server-manager/app.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target

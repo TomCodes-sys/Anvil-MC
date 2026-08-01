@@ -1,0 +1,19 @@
+[Unit]
+Description=Anvil Mod Manager - Mod Manager for Crafty Controller
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/anvilmc/mod-manager
+ExecStart=/opt/anvilmc/mod-manager/venv/bin/python3 /opt/anvilmc/mod-manager/app.py
+Restart=on-failure
+# Runs as the user that installed it (install.sh fills this in below) so it
+# has the same filesystem permissions as Crafty itself to read/write into
+# your servers/<id>/mods folders. If Crafty runs as a different user (e.g. a
+# dedicated "crafty" service account), change this line to match, then:
+#   sudo systemctl daemon-reload && sudo systemctl restart anvil-mod-manager
+User=__INSTALL_USER__
+Environment=PORT=5151
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Anvil Server Installer Dashboard
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/anvilmc/installer
+ExecStart=/opt/anvilmc/installer/venv/bin/python3 /opt/anvilmc/installer/app.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target

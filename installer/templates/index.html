@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anvil Server Installer</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.24.0/dist/umd/lucide.js"></script>
+</head>
+<body>
+
+<div class="scaffold">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">&gt;_</span>
+      <div class="brand-text">
+        <span class="brand-title">anvil server installer</span>
+        <span class="brand-sub">minecraft server setup for crafty controller &amp; cockpit</span>
+      </div>
+    </div>
+
+    <nav class="topbar-links">
+      <a class="topbar-link disabled" id="link-crafty" href="#" target="_blank" rel="noopener"><span class="link-dot" id="dot-crafty"></span><i data-lucide="hammer"></i>Crafty</a>
+      <a class="topbar-link disabled" id="link-cockpit" href="#" target="_blank" rel="noopener"><span class="link-dot" id="dot-cockpit"></span><i data-lucide="layout-dashboard"></i>Cockpit</a>
+      <a class="topbar-link disabled" id="link-mod-manager" href="#" target="_blank" rel="noopener"><span class="link-dot" id="dot-mod-manager"></span><i data-lucide="package-open"></i>Mod Manager</a>
+      <a class="topbar-link disabled" id="link-server-manager" href="#" target="_blank" rel="noopener"><span class="link-dot" id="dot-server-manager"></span><i data-lucide="server-cog"></i>Server Manager</a>
+      <a class="topbar-link" href="https://docs.craftycontrol.com" target="_blank" rel="noopener"><i data-lucide="book-open"></i>Crafty Docs</a>
+    </nav>
+
+    <div class="topbar-right">
+      <label class="adv-toggle">
+        <input type="checkbox" id="advanced-toggle" onchange="onAdvancedToggle(event)">
+        advanced mode
+      </label>
+      <div class="ip-pill" id="ip-pill"><i data-lucide="wifi"></i>local-ip: <span id="local-ip">--</span></div>
+    </div>
+  </header>
+
+  <div class="preview-banner" id="preview-banner" style="display:none">
+    <span class="preview-dot"></span>
+    <span><strong>Preview mode</strong> — buttons run fake output only. No real system commands are executed.</span>
+  </div>
+
+  <div class="update-banner" id="update-banner" style="display:none">
+    <i data-lucide="arrow-up-circle"></i>
+    <span id="update-banner-text">Update available.</span>
+    <a id="update-banner-link" class="btn-ghost" href="#" target="_blank" rel="noopener">View changes</a>
+    <button id="update-banner-btn" class="btn-secondary" onclick="applySelfUpdate()">Update now</button>
+  </div>
+
+  <main class="content">
+
+    <section class="card prereqs">
+      <h2><span class="eyebrow">before you start</span> Prerequisites</h2>
+
+      <div class="prereq-item">
+        <div class="prereq-head">
+          <span class="prereq-title"><i data-lucide="network"></i>Give this server a fixed IP address</span>
+          <button class="info-btn" onclick="toggleInfo('static-ip')" aria-label="More detail">?</button>
+        </div>
+        <p class="prereq-simple">So its address never changes and your setup keeps working. In your router, set a DHCP reservation (sometimes called a "static lease") for this MAC address:</p>
+        <div class="mac-box">
+          <code id="mac-address">--</code>
+          <button class="copy-btn" onclick="copyPort('mac-address', this)">copy</button>
+        </div>
+        <div class="prereq-advanced" id="info-static-ip" hidden>
+          <div class="prereq-advanced-inner">
+          Your router normally hands out IPs that can change over time (DHCP). If this server's
+          IP changes, your router's port forwarding rules point at the wrong device and everything
+          breaks silently. In your router's admin page, look for "DHCP Reservation" or "Static Lease,"
+          paste in the MAC address above, and give it a fixed IP. This is preferred over setting a
+          static IP directly on Ubuntu, since it keeps everything configured in one place.
+          </div>
+        </div>
+      </div>
+
+      <div class="prereq-item">
+        <div class="prereq-head">
+          <span class="prereq-title"><i data-lucide="globe"></i>Make sure your ISP allows port forwarding (no CGNAT)</span>
+          <button class="info-btn" onclick="toggleInfo('cgnat')" aria-label="More detail">?</button>
+        </div>
+        <p class="prereq-simple">Some ISPs share one public IP between many houses — if that's you, port forwarding won't work.</p>
+        <div class="prereq-advanced" id="info-cgnat" hidden>
+          <div class="prereq-advanced-inner">
+          This is called Carrier-Grade NAT (CGNAT). To check: compare your router's WAN/internet IP
+          (found in its admin page) against what
+          <a href="https://whatismyipaddress.com" target="_blank" rel="noopener">whatismyipaddress.com</a>
+          shows you. If they're different, you're behind CGNAT — port forwarding physically cannot
+          work no matter how it's configured. Call your ISP and ask for a public IP (sometimes free,
+          sometimes a small fee), or use a tunnel service like playit.gg or ngrok as a workaround.
+          </div>
+        </div>
+      </div>
+
+      <div class="prereq-item">
+        <div class="prereq-head">
+          <span class="prereq-title"><i data-lucide="router"></i>Forward these ports on your router</span>
+          <button class="info-btn" onclick="toggleInfo('portfwd')" aria-label="More detail">?</button>
+        </div>
+        <p class="prereq-simple">Log into your router's admin page, find "Port Forwarding," and point these at this server's IP:</p>
+
+        <table class="port-table">
+          <thead>
+            <tr><th>Port</th><th>Protocol</th><th>For</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code id="port-25565">25565</code></td>
+              <td>TCP</td>
+              <td>Minecraft Java Edition</td>
+              <td><button class="copy-btn" onclick="copyPort('port-25565', this)">copy</button></td>
+            </tr>
+            <tr>
+              <td><code id="port-19132">19132</code></td>
+              <td>UDP</td>
+              <td>Minecraft Bedrock Edition</td>
+              <td><button class="copy-btn" onclick="copyPort('port-19132', this)">copy</button></td>
+            </tr>
+            <tr>
+              <td><code id="port-19134">19134</code></td>
+              <td>UDP</td>
+              <td>Additional Bedrock/companion server</td>
+              <td><button class="copy-btn" onclick="copyPort('port-19134', this)">copy</button></td>
+            </tr>
+            <tr>
+              <td><code id="port-19135">19135</code></td>
+              <td>UDP</td>
+              <td>Additional Bedrock/companion server</td>
+              <td><button class="copy-btn" onclick="copyPort('port-19135', this)">copy</button></td>
+            </tr>
+            <tr>
+              <td><code id="port-24454">24454</code></td>
+              <td>UDP</td>
+              <td>Voice chat (Simple Voice Chat mod)</td>
+              <td><button class="copy-btn" onclick="copyPort('port-24454', this)">copy</button></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="prereq-advanced" id="info-portfwd" hidden>
+          <div class="prereq-advanced-inner">
+          Only forward the three ports above. Do <strong>not</strong> forward 8443 (Crafty) or 9090
+          (Cockpit) — those give control over the whole server and should stay on your home network
+          only. TCP vs UDP matters: forwarding a
+          port on the wrong protocol is a common reason Bedrock or voice chat "doesn't work" even
+          though the rule looks right. Every router's UI is laid out differently, but you're always
+          looking for a section named some variant of "Port Forwarding," "Virtual Server," or "NAT."
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <nav class="tabs" id="tabs-installer">
+      <span class="tab-indicator" id="tab-indicator-installer"></span>
+      <button class="tab-btn active" data-tab="setup" onclick="switchTab('setup')"><i data-lucide="list-checks"></i>Setup</button>
+      <button class="tab-btn" data-tab="terminal" onclick="switchTab('terminal')"><i data-lucide="terminal"></i>Terminal</button>
+    </nav>
+
+    <div class="tab-panel active" id="tab-setup">
+      <section class="card steps">
+        <h2><span class="eyebrow">boot sequence</span> Setup steps</h2>
+
+        <div class="step-rail" id="step-rail"></div>
+
+        <div class="active-step-box" id="active-step-box">
+          <div class="active-step-head">
+            <h3 id="active-step-title"></h3>
+            <span class="step-state" id="active-step-state">pending</span>
+          </div>
+          <p id="active-step-desc"></p>
+          <div class="active-step-body" id="active-step-body">
+            <div class="mini-console" id="mini-console"></div>
+          </div>
+          <div class="active-step-actions">
+            <button class="btn-primary" id="run-current-btn" onclick="runCurrentStep()">Run this step</button>
+            <button class="btn-secondary" id="next-btn" onclick="goNextStep()" hidden>Next step <i data-lucide="arrow-right"></i></button>
+            <a class="btn-secondary disabled" id="open-mod-manager-btn" href="#" target="_blank" rel="noopener" hidden><i data-lucide="package-open"></i>Open Anvil Mod Manager →</a>
+            <a class="btn-secondary disabled" id="open-server-manager-btn" href="#" target="_blank" rel="noopener" hidden><i data-lucide="server-cog"></i>Open Anvil Server Manager →</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card creds-panel">
+        <h2><span class="eyebrow">access</span> Crafty login</h2>
+        <div id="creds-box" class="creds-box">
+          <p class="hint">This fills in automatically once Crafty finishes installing.</p>
+        </div>
+        <button class="btn-secondary" onclick="getCreds()"><i data-lucide="refresh-cw"></i>Refresh login info</button>
+
+        <div class="access-links" id="access-links">
+          <p class="hint" style="margin-top:16px;">Full links — always shown on one line so copy/paste never grabs a partial URL:</p>
+          <div class="mac-box">
+            <code id="link-full-crafty">--</code>
+            <button class="copy-btn" onclick="copyPort('link-full-crafty', this)">copy</button>
+          </div>
+          <div class="mac-box">
+            <code id="link-full-mod-manager">--</code>
+            <button class="copy-btn" onclick="copyPort('link-full-mod-manager', this)">copy</button>
+          </div>
+          <div class="mac-box">
+            <code id="link-full-server-manager">--</code>
+            <button class="copy-btn" onclick="copyPort('link-full-server-manager', this)">copy</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card danger-zone">
+        <h2><span class="eyebrow eyebrow-danger">danger zone</span> Uninstall</h2>
+        <p class="hint" style="margin-bottom:16px;">These run real removal commands on the server. Each button only touches the component it names.</p>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <strong>Anvil Mod Manager</strong>
+            <span>Stops the service and clears its venv/data — its source stays put (it's part of this shared AnvilMC checkout), so reinstalling from this wizard is instant.</span>
+          </div>
+          <button class="btn-danger" onclick="runUninstall('mod_manager')">Uninstall</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <strong>Anvil Server Manager</strong>
+            <span>Stops the service and clears its venv/data — its source stays put (it's part of this shared AnvilMC checkout), so reinstalling from this wizard is instant.</span>
+          </div>
+          <button class="btn-danger" onclick="runUninstall('server_manager')">Uninstall</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <strong>Cockpit + Explorer</strong>
+            <span>Purges the Cockpit admin panel and the built-in Explorer file manager.</span>
+          </div>
+          <button class="btn-danger" onclick="runUninstall('cockpit')">Uninstall</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <strong>Crafty Controller</strong>
+            <span>Removes the Crafty container and image.</span>
+            <label class="danger-checkbox"><input type="checkbox" id="crafty-purge-data"> Also permanently delete Crafty's data (servers, backups, config)</label>
+          </div>
+          <button class="btn-danger" onclick="runUninstall('crafty')">Uninstall</button>
+        </div>
+
+        <div class="danger-row">
+          <div class="danger-info">
+            <strong>Docker</strong>
+            <span>Removes Docker itself — this also removes the Crafty container (since it depends on Docker), but leaves Crafty's data in /opt/crafty alone.</span>
+          </div>
+          <button class="btn-danger" onclick="runUninstall('docker')">Uninstall</button>
+        </div>
+
+        <div id="uninstall-console" class="mini-console"></div>
+
+        <div class="danger-row danger-row-final">
+          <div class="danger-info">
+            <strong>Anvil Server Installer (this dashboard)</strong>
+            <span>Removes this setup dashboard itself. Docker, Crafty, Cockpit, Anvil Mod Manager, and your Minecraft servers are <em>not</em> touched — only this wizard goes away, and you'll lose access to this page.</span>
+          </div>
+          <button class="btn-danger btn-danger-final" onclick="runUninstallSelf()">Remove this dashboard</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="tab-panel" id="tab-terminal">
+      <section class="card">
+        <h2><span class="eyebrow">sudo</span> Server terminal</h2>
+        <div id="term-login">
+          <input id="term-user" type="text" placeholder="username" autocomplete="username">
+          <input id="term-pass" type="password" placeholder="password" autocomplete="current-password">
+          <p id="term-error" class="status-line error" style="min-height:16px;"></p>
+          <button class="btn-primary" onclick="termLogin()">Unlock terminal</button>
+        </div>
+        <div id="term-container"></div>
+        <div id="term-logout-wrap" style="display:none; margin-top:10px;">
+          <button class="btn-secondary" onclick="termLogout()"><i data-lucide="log-out"></i>Log out &amp; clear saved sudo credentials</button>
+        </div>
+      </section>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anvil Server Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.24.0/dist/umd/lucide.js"></script>
+</head>
+<body>
+
+<div id="crafty-gate-overlay" class="crafty-gate-overlay" style="display:none">
+  <div class="crafty-gate-card">
+    <span class="brand-mark" style="font-size:28px;">⚒</span>
+    <h1>Connect Crafty to continue</h1>
+    <p class="hint">Anvil Server Manager needs Crafty's own API to check real server status, trigger Crash Recovery restarts, and drive the Fleet view. Enter your API token below — the URL is filled in automatically since Crafty runs on this same machine.</p>
+
+    <label>Crafty API URL
+      <input type="text" id="gate-crafty-url" placeholder="https://192.168.1.50:8443">
+    </label>
+
+    <details class="how-to-box" open style="margin:10px 0;">
+      <summary>How to get a Crafty API token</summary>
+      <ol style="margin:8px 0 0 18px; padding:0; font-size:12.5px; color:var(--ink-dim);">
+        <li>Log into Crafty's web UI.</li>
+        <li>Click your username (top right) → <strong>Profile</strong>.</li>
+        <li>Scroll to the <strong>API Keys</strong> section → click <strong>Generate Key</strong>.</li>
+        <li>Tick <strong>superuser</strong> if you want this to see every server, not just ones shared to that user.</li>
+        <li>Copy the token immediately — Crafty only shows it once — and paste it below.</li>
+      </ol>
+      <a class="btn-secondary btn-small" id="gate-open-crafty-link" href="#" target="_blank" rel="noopener" style="margin-top:8px; display:inline-flex;"><i data-lucide="external-link"></i>Open Crafty</a>
+    </details>
+
+    <label>Crafty API token
+      <input type="password" id="gate-crafty-token" placeholder="paste an API token generated in Crafty">
+    </label>
+    <button class="btn-primary" id="gate-continue-btn" onclick="submitCraftyGate()" disabled>Save &amp; continue</button>
+    <p class="status-line" id="gate-status"></p>
+  </div>
+</div>
+
+<div id="preview-banner-slot"></div>
+<div id="update-banners"></div>
+
+<div class="scaffold" id="main-scaffold" style="display:none">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">⚒</span>
+      <div class="brand-text">
+        <span class="brand-title">Anvil Server Manager</span>
+        <span class="brand-sub">Updates · fleet overview · backups</span>
+      </div>
+    </div>
+    <div class="topbar-links">
+      <a class="topbar-link" id="link-installer" href="#" target="_blank" rel="noopener"><span class="status-dot" id="topdot-installer"></span><i data-lucide="wrench"></i>Installer</a>
+      <a class="topbar-link" id="link-mod-manager" href="#" target="_blank" rel="noopener"><span class="status-dot" id="topdot-mod-manager"></span><i data-lucide="package-open"></i>Mod Manager</a>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="home">Home</button>
+      <button class="tab" data-tab="updates">Updates</button>
+      <button class="tab" data-tab="fleet">Fleet</button>
+      <button class="tab" data-tab="rcon">RCON</button>
+      <button class="tab" data-tab="players">Players</button>
+      <button class="tab" data-tab="logs">Logs</button>
+      <button class="tab" data-tab="backups">Backups</button>
+      <button class="tab" data-tab="monitoring">Monitoring</button>
+      <button class="tab" data-tab="notifications">Notifications</button>
+      <div class="tab-indicator" id="tab-indicator"></div>
+    </nav>
+  </header>
+
+  <!-- HOME -->
+  <section class="panel active" id="panel-home">
+    <div class="panel-head">
+      <h1>Welcome to Anvil</h1>
+      <p>One hub for the whole setup: jump into the Installer or Mod Manager, keep Crafty/Docker/Cockpit current, see every server at a glance, and never lose a world to a bad update.</p>
+    </div>
+    <div class="home-grid">
+      <a class="home-link-card" id="home-card-installer" href="#" target="_blank" rel="noopener">
+        <i data-lucide="wrench" class="card-icon" style="width:22px;height:22px;"></i>
+        <h3>Anvil Server Installer</h3>
+        <p>Set up Docker, Crafty, Cockpit + Navigator, and the companion apps from a click-through wizard.</p>
+        <span class="card-status"><span class="status-dot" id="dot-installer"></span><span id="text-installer">checking…</span></span>
+      </a>
+      <a class="home-link-card" id="home-card-mod-manager" href="#" target="_blank" rel="noopener">
+        <i data-lucide="package-open" class="card-icon" style="width:22px;height:22px;"></i>
+        <h3>Anvil Mod Manager</h3>
+        <p>Find, install, and update mods/plugins/datapacks per server from Modrinth &amp; CurseForge.</p>
+        <span class="card-status"><span class="status-dot" id="dot-mod-manager"></span><span id="text-mod-manager">checking…</span></span>
+      </a>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <h2>At a glance</h2>
+      <div id="home-summary" class="hint" style="margin:0;">Loading…</div>
+    </div>
+  </section>
+
+  <!-- UPDATES -->
+  <section class="panel" id="panel-updates">
+    <div class="panel-head">
+      <h1>Updates</h1>
+      <p>Checks and applies updates for Anvil Server Manager itself, Crafty Controller, Docker, and Cockpit. Each one is independent — a failure in one never blocks the others.</p>
+    </div>
+
+    <div class="card">
+      <h2>Anvil Server Manager</h2>
+      <div class="update-row">
+        <div class="update-row-info">
+          <strong>This dashboard</strong>
+          <span id="self-update-detail">Checking…</span>
+        </div>
+        <div class="update-row-actions">
+          <span class="update-pill unknown" id="self-update-pill">—</span>
+          <button class="btn-secondary btn-small" onclick="checkUpdate('self')">Check</button>
+          <button class="btn-primary btn-small" id="self-apply-btn" onclick="applyUpdate('self')" hidden>Update now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Crafty Controller</h2>
+      <div class="update-row">
+        <div class="update-row-info">
+          <strong>Crafty (pinned image tag)</strong>
+          <span id="crafty-update-detail">Not checked yet.</span>
+        </div>
+        <div class="update-row-actions">
+          <span class="update-pill unknown" id="crafty-update-pill">—</span>
+          <button class="btn-secondary btn-small" onclick="checkUpdate('crafty')">Check for Crafty updates</button>
+          <button class="btn-primary btn-small" id="crafty-apply-btn" onclick="applyUpdate('crafty')" hidden>Update &amp; restart</button>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px;">Crafty's image tag is pinned to a specific released version here (not Docker's mutable <code>:latest</code>), so updates are a deliberate action instead of silently drifting. Restarting Crafty briefly stops any running Minecraft servers managed by it — do this when no one's playing.</p>
+    </div>
+
+    <div class="card">
+      <h2>Docker Engine</h2>
+      <div class="update-row">
+        <div class="update-row-info">
+          <strong>docker-ce</strong>
+          <span id="docker-update-detail">Not checked yet.</span>
+        </div>
+        <div class="update-row-actions">
+          <span class="update-pill unknown" id="docker-update-pill">—</span>
+          <button class="btn-secondary btn-small" onclick="checkUpdate('docker')">Check</button>
+          <button class="btn-primary btn-small" id="docker-apply-btn" onclick="applyUpdate('docker')" hidden>Update now</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cockpit</h2>
+      <div class="update-row">
+        <div class="update-row-info">
+          <strong>cockpit + navigator</strong>
+          <span id="cockpit-update-detail">Not checked yet.</span>
+        </div>
+        <div class="update-row-actions">
+          <span class="update-pill unknown" id="cockpit-update-pill">—</span>
+          <button class="btn-secondary btn-small" onclick="checkUpdate('cockpit')">Check</button>
+          <button class="btn-primary btn-small" id="cockpit-apply-btn" onclick="applyUpdate('cockpit')" hidden>Update now</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLEET -->
+  <section class="panel" id="panel-fleet">
+    <div class="panel-head">
+      <h1>Fleet overview</h1>
+      <p>Every server Anvil Mod Manager tracks, read straight from its data files — MC version, loader, and how many items have updates pending.</p>
+    </div>
+    <div class="card">
+      <div id="fleet-empty" class="hint" style="margin:0;" hidden></div>
+      <p id="fleet-note" class="hint" style="margin-top:0;" hidden></p>
+      <table class="fleet-table" id="fleet-table" hidden>
+        <thead>
+          <tr><th>Server</th><th>MC Version</th><th>Loader</th><th>Mods</th><th>Plugins</th><th>Datapacks</th><th>Updates pending</th><th>Manage</th></tr>
+        </thead>
+        <tbody id="fleet-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RCON -->
+  <section class="panel" id="panel-rcon">
+    <div class="panel-head">
+      <h1>RCON console</h1>
+      <p>A lightweight command box that talks directly to a server's RCON port — say, whitelist, tp, save-all, whatever — without needing Crafty's own console or SSH. Each server needs <code>enable-rcon=true</code>, an <code>rcon.port</code>, and an <code>rcon.password</code> set in its <code>server.properties</code> first.</p>
+    </div>
+    <div class="card">
+      <h2>Target server</h2>
+      <label>Server
+        <select id="rcon-server-select"></select>
+      </label>
+      <p id="rcon-bedrock-notice" class="hint" hidden>Vanilla Bedrock dedicated servers don't support RCON at all — there's no protocol for it to connect to. This tab only works for Java servers.</p>
+      <div id="rcon-form">
+        <div class="backup-form-grid">
+          <div>
+            <label>Host
+              <input type="text" id="rcon-host" value="127.0.0.1">
+            </label>
+          </div>
+          <div>
+            <label>Port
+              <input type="number" id="rcon-port" value="25575">
+            </label>
+          </div>
+        </div>
+        <label>RCON password
+          <input type="password" id="rcon-password" placeholder="from server.properties">
+        </label>
+        <button class="btn-primary" onclick="saveRconTarget()">Save connection</button>
+        <p class="status-line" id="rcon-target-status"></p>
+      </div>
+    </div>
+    <div class="card" id="rcon-console-card">
+      <h2>Console</h2>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+        <button class="btn-secondary btn-small" onclick="sendRcon('list')">List players</button>
+        <button class="btn-secondary btn-small" onclick="sendRcon('save-all')">Save world</button>
+        <button class="btn-secondary btn-small" onclick="promptBroadcast()">Broadcast message</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="rcon-command-input" placeholder="type a command, e.g. 'op Steve'" style="margin-top:0;">
+        <button class="btn-primary" onclick="sendRconFromInput()">Send</button>
+      </div>
+      <pre id="rcon-output" style="background:var(--bg-input); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; margin-top:12px; max-height:260px; overflow-y:auto; font-family:var(--font-mono); font-size:12px; white-space:pre-wrap;"></pre>
+    </div>
+  </section>
+
+  <!-- PLAYERS (whitelist/ops/bans) -->
+  <section class="panel" id="panel-players">
+    <div class="panel-head">
+      <h1>Whitelist / ops / bans</h1>
+      <p>A shared UI over each server's <code>whitelist.json</code>, <code>ops.json</code>, and ban lists — with a Mojang username lookup so you never have to hand-craft a UUID.</p>
+      <p id="players-bedrock-notice" class="hint" hidden>Bedrock's whitelist/permissions use a different file format than Java's (no UUIDs, no ops.json) — only whitelist add/remove is offered here for Bedrock servers; ops and ban management are Java-only for now.</p>
+    </div>
+    <div class="card">
+      <label>Server
+        <select id="players-server-select"></select>
+      </label>
+    </div>
+    <div class="card">
+      <h2>Whitelist</h2>
+      <div class="source-path-row"><input type="text" id="whitelist-username-input" placeholder="Minecraft username"><button class="btn-primary btn-small" onclick="addPlayer('whitelist')">Add</button></div>
+      <div id="whitelist-list"></div>
+    </div>
+    <div class="card" id="ops-card">
+      <h2>Ops</h2>
+      <div class="source-path-row"><input type="text" id="ops-username-input" placeholder="Minecraft username"><button class="btn-primary btn-small" onclick="addPlayer('ops')">Add</button></div>
+      <div id="ops-list"></div>
+    </div>
+    <div class="card" id="banned-players-card">
+      <h2>Banned players</h2>
+      <div class="source-path-row"><input type="text" id="banned-players-username-input" placeholder="Minecraft username"><button class="btn-danger btn-small" onclick="addPlayer('banned-players')">Ban</button></div>
+      <div id="banned-players-list"></div>
+    </div>
+    <div class="card" id="banned-ips-card">
+      <h2>Banned IPs</h2>
+      <div class="source-path-row"><input type="text" id="banned-ips-ip-input" placeholder="IP address"><button class="btn-danger btn-small" onclick="addPlayer('banned-ips')">Ban</button></div>
+      <div id="banned-ips-list"></div>
+    </div>
+  </section>
+
+  <!-- LOGS -->
+  <section class="panel" id="panel-logs">
+    <div class="panel-head">
+      <h1>Log &amp; crash analyzer</h1>
+      <p>Tails a server's <code>logs/latest.log</code> and flags common crash signatures in plain English — out of memory, port conflicts, mod version mismatches, and so on.</p>
+    </div>
+    <div class="card">
+      <label>Server
+        <select id="logs-server-select"></select>
+      </label>
+      <button class="btn-secondary btn-small" onclick="loadLogTail()">Refresh</button>
+    </div>
+    <div class="card" id="log-findings-card" hidden>
+      <h2>Flagged issues</h2>
+      <div id="log-findings-list"></div>
+    </div>
+    <div class="card">
+      <h2>Last 200 lines</h2>
+      <pre id="log-tail-output" style="background:var(--bg-input); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px; max-height:400px; overflow-y:auto; font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap;"></pre>
+    </div>
+  </section>
+
+  <!-- BACKUPS -->
+  <section class="panel" id="panel-backups">
+    <div class="panel-head">
+      <h1>Backup Manager</h1>
+      <p>Scheduled world backups via restic, to a local second disk or an offsite S3-compatible/Backblaze B2 bucket — with restore-to-a-point-in-time. This is the single biggest "oh no" gap for a home-lab setup, so it's worth setting up before you need it.</p>
+    </div>
+
+    <div class="card">
+      <h2>Repository</h2>
+      <label>Where should backups live?
+        <select id="backup-repo-type">
+          <option value="local">Local path (e.g. a second disk)</option>
+          <option value="s3">S3-compatible</option>
+          <option value="b2">Backblaze B2</option>
+        </select>
+      </label>
+
+      <div class="backup-form-grid">
+        <div class="repo-fields" id="repo-fields-local">
+          <label>Local path
+            <input type="text" id="backup-repo-path" placeholder="/mnt/backup-disk/anvil-restic">
+          </label>
+        </div>
+        <div class="repo-fields" id="repo-fields-s3">
+          <label>S3 endpoint
+            <input type="text" id="backup-s3-endpoint" placeholder="https://s3.us-west-000.backblazeb2.com">
+          </label>
+          <label>Bucket
+            <input type="text" id="backup-s3-bucket" placeholder="my-anvil-backups">
+          </label>
+          <label>Access key
+            <input type="text" id="backup-s3-access-key">
+          </label>
+          <label>Secret key
+            <input type="password" id="backup-s3-secret-key">
+          </label>
+        </div>
+        <div class="repo-fields" id="repo-fields-b2">
+          <label>Bucket name
+            <input type="text" id="backup-b2-bucket" placeholder="my-anvil-backups">
+          </label>
+          <label>Account ID (key ID)
+            <input type="text" id="backup-b2-account-id">
+          </label>
+          <label>Application key
+            <input type="password" id="backup-b2-account-key">
+          </label>
+        </div>
+      </div>
+
+      <label>Repository password (encrypts everything restic stores — write this down somewhere safe, it can't be recovered)
+        <input type="password" id="backup-restic-password" placeholder="a strong passphrase">
+      </label>
+      <button class="btn-secondary" onclick="initBackupRepo()">Initialize repository</button>
+      <p class="status-line" id="backup-repo-status"></p>
+    </div>
+
+    <div class="card">
+      <h2>What to back up</h2>
+      <div id="source-paths-list"></div>
+      <button class="btn-ghost btn-small" onclick="addSourcePathField()"><i data-lucide="plus"></i>Add path</button>
+      <label style="margin-top:16px;">Keep last N backups (older ones get pruned)
+        <input type="number" id="backup-keep-last" min="1" value="14">
+      </label>
+      <label class="toggle-row" style="margin-top:4px;">
+        <input type="checkbox" id="backup-schedule-enabled">
+        Run automatically on a schedule
+      </label>
+      <label>Every (hours)
+        <input type="number" id="backup-interval-hours" min="1" value="24">
+      </label>
+      <button class="btn-primary" onclick="saveBackupSettings()">Save backup settings</button>
+      <p class="status-line" id="backup-settings-status"></p>
+    </div>
+
+    <div class="card">
+      <h2>Run &amp; history</h2>
+      <button class="btn-primary" id="btn-run-backup" onclick="runBackupNow()"><i data-lucide="play"></i>Run backup now</button>
+      <p class="status-line" id="backup-run-status"></p>
+      <div id="backup-history-list" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Snapshots &amp; restore</h2>
+      <button class="btn-secondary btn-small" onclick="loadSnapshots()">Refresh snapshots</button>
+      <div id="snapshot-list" style="margin-top:12px;"></div>
+      <p class="hint">Restoring always writes to a fresh staging folder (never straight back onto a live world) — move what you need into place afterward via Cockpit Navigator or SSH.</p>
+    </div>
+  </section>
+
+  <!-- MONITORING -->
+  <section class="panel" id="panel-monitoring">
+    <div class="panel-head">
+      <h1>Monitoring</h1>
+      <p>Ubuntu Server health at a glance, plus automatic crash detection and recovery for every server linked to Crafty.</p>
+    </div>
+
+    <div class="card">
+      <h2><i data-lucide="activity"></i>Ubuntu Server Health Monitor</h2>
+      <p class="hint" style="margin-top:0">Disk usage, SMART status, CPU temperature, RAM, and network throughput — refreshes every time you open this tab, and checked in the background every 5 minutes with a Discord alert before anything actually fails.</p>
+      <button class="btn-secondary btn-small" onclick="loadHealth()"><i data-lucide="refresh-cw"></i>Refresh now</button>
+      <div id="health-grid" class="health-grid" style="margin-top:12px;"></div>
+      <details style="margin-top:12px;">
+        <summary>Alert thresholds</summary>
+        <div class="card-row" style="margin-top:10px;">
+          <label>Disk warn %<input type="number" id="health-disk-warn" min="1" max="100"></label>
+          <label>Disk critical %<input type="number" id="health-disk-crit" min="1" max="100"></label>
+          <label>CPU temp warn °C<input type="number" id="health-cpu-warn" min="1" max="120"></label>
+          <label>CPU temp critical °C<input type="number" id="health-cpu-crit" min="1" max="120"></label>
+          <label>RAM warn %<input type="number" id="health-ram-warn" min="1" max="100"></label>
+          <label>RAM critical %<input type="number" id="health-ram-crit" min="1" max="100"></label>
+        </div>
+        <button class="btn-primary btn-small" style="margin-top:10px;" onclick="saveHealthSettings()">Save thresholds</button>
+        <p class="status-line" id="health-settings-status"></p>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2><i data-lucide="siren"></i>Crash Recovery Tool</h2>
+      <p class="hint" style="margin-top:0">Watches every server linked to Crafty. On an unexpected stop (not one you triggered), it restarts the server automatically, saves a copy of its logs somewhere durable, and flags the world as possibly corrupt so you know to check before rejoining.</p>
+
+      <label>Crafty API URL
+        <input type="text" id="crash-crafty-url" placeholder="https://192.168.1.50:8443">
+      </label>
+      <button class="btn-ghost btn-small" type="button" onclick="detectCraftyUrl()"><i data-lucide="wifi"></i>Auto-detect (this machine's IP)</button>
+
+      <details class="how-to-box" style="margin:10px 0;">
+        <summary>How to get a Crafty API token</summary>
+        <ol style="margin:8px 0 0 18px; padding:0; font-size:12.5px; color:var(--ink-dim);">
+          <li>Log into Crafty's web UI.</li>
+          <li>Click your username (top right) → <strong>Profile</strong>.</li>
+          <li>Scroll to the <strong>API Keys</strong> section → click <strong>Generate Key</strong>.</li>
+          <li>Tick <strong>superuser</strong> if you want Crash Recovery to see every server, not just ones shared to that user.</li>
+          <li>Copy the token immediately — Crafty only shows it once — and paste it below.</li>
+        </ol>
+        <a class="btn-secondary btn-small" id="crash-open-crafty-link" href="#" target="_blank" rel="noopener" style="margin-top:8px; display:inline-flex;"><i data-lucide="external-link"></i>Open Crafty</a>
+      </details>
+
+      <label>Crafty API token
+        <input type="password" id="crash-crafty-token" placeholder="paste an API token generated in Crafty">
+      </label>
+      <button class="btn-secondary btn-small" onclick="saveCrashCraftyApi()">Save Crafty connection</button>
+      <p class="status-line" id="crash-crafty-status"></p>
+
+      <label class="toggle-row"><input type="checkbox" id="crash-enabled">Enable crash watching</label>
+      <label class="toggle-row"><input type="checkbox" id="crash-auto-restart">Automatically restart a crashed server</label>
+      <label>Check interval (seconds)
+        <input type="number" id="crash-interval" min="15" style="max-width:120px;">
+      </label>
+      <button class="btn-primary btn-small" onclick="saveCrashSettings()">Save</button>
+      <p class="status-line" id="crash-settings-status"></p>
+
+      <h3 style="margin-top:18px;">Recent crash events</h3>
+      <button class="btn-secondary btn-small" onclick="loadCrashEvents()"><i data-lucide="refresh-cw"></i>Refresh</button>
+      <div id="crash-events-list" style="margin-top:10px;"></div>
+    </div>
+  </section>
+
+  <!-- NOTIFICATIONS -->
+  <section class="panel" id="panel-notifications">
+    <div class="panel-head">
+      <h1>Notifications</h1>
+      <p>A Discord webhook notifier for backup results, update availability, health alerts, and crash detection — the same detect-and-notify pattern already used for the in-app update banners, just pointed at Discord instead.</p>
+    </div>
+    <div class="card">
+      <h2>Discord webhook</h2>
+      <label>Webhook URL
+        <input type="url" id="discord-webhook-url" placeholder="https://discord.com/api/webhooks/...">
+      </label>
+      <label class="toggle-row"><input type="checkbox" id="notify-backup-complete" checked>Notify on backup complete</label>
+      <label class="toggle-row"><input type="checkbox" id="notify-backup-failed" checked>Notify on backup failed</label>
+      <label class="toggle-row"><input type="checkbox" id="notify-update-available" checked>Notify when an update becomes available</label>
+      <label class="toggle-row"><input type="checkbox" id="notify-health-alert" checked>Notify on a health warning (disk/CPU temp/RAM/SMART)</label>
+      <label class="toggle-row"><input type="checkbox" id="notify-crash-detected" checked>Notify when a crash is detected</label>
+      <button class="btn-primary" onclick="saveDiscordSettings()">Save</button>
+      <button class="btn-secondary" onclick="testDiscord()">Send test message</button>
+      <p class="status-line" id="discord-status"></p>
+    </div>
+
+    <div class="card">
+      <h2>Coming soon</h2>
+      <div class="coming-soon-grid">
+        <div class="coming-soon-card">
+          <span class="badge">planned</span>
+          <h3><i data-lucide="git-branch"></i>Expanded fleet overview</h3>
+          <p>More per-server insight beyond counts — health history, disk usage, and player activity trends.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
