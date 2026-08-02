@@ -237,6 +237,26 @@ if [ "$INSTALL_USER" != "root" ]; then
     echo "  WARNING: the generated sudoers rule failed validation — Mod Manager's restart-on-update may not work. Check /etc/sudoers.d/anvil-mod-manager-restart"
 fi
 
+# Defensive firewall self-heal: the Installer's own "Uninstall" action
+# explicitly deletes its ufw rule for port 8090 as cleanup — entirely
+# reasonable in isolation, but combined with re-installing via this script
+# (which never touches firewall rules; that stays a separate, dashboard-
+# driven step) it leaves the Installer completely unreachable from any
+# other machine while everything else still works, which looks exactly
+# like "the page doesn't exist." Only acts if ufw is already installed AND
+# already active — never installs or enables a firewall that wasn't there,
+# just makes sure these three ports specifically can't end up silently
+# closed by any past uninstall/reinstall sequence. `ufw allow` is safe to
+# repeat; it won't duplicate an already-present rule.
+if command -v ufw &> /dev/null && $SUDO ufw status 2>/dev/null | grep -q "^Status: active"; then
+  echo ""
+  echo "Making sure the firewall (already active on this box) still allows all"
+  echo "three dashboard ports, regardless of any previous uninstall/reinstall:"
+  $SUDO ufw allow 8090/tcp > /dev/null
+  $SUDO ufw allow 5151/tcp > /dev/null
+  $SUDO ufw allow 6161/tcp > /dev/null
+fi
+
 IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}')
 [ -z "$IP" ] && IP=$(hostname -I | awk '{print $1}')
 

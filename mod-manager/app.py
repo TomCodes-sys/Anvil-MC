@@ -2210,4 +2210,4 @@ if __name__ == "__main__":
         print("  Anvil Mod Manager is running.")
         print(f"  Open this in a browser: http://<this-machine-ip>:{port}/")
         print("=" * 50)
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    app.run(host="0.0.0.0", port=port, debug=debug, threaded=True)
