@@ -87,6 +87,23 @@ $SUDO apt-get install -y -qq python3 python3-venv python3-pip git curl restic sm
 
 echo "[3/7] Copying AnvilMC to $INSTALL_DIR ..."
 $SUDO mkdir -p "$INSTALL_DIR"
+
+# Preserve real settings across a re-run (updating, or fixing something) —
+# settings.json for both these apps got committed to git early on, before
+# .gitignore excluded it, so it's still sitting in the repo's history as
+# stale demo content. A plain overwrite would silently replace a REAL Crafty
+# connection, tracked servers, and backup config with that leftover demo
+# data every single time this script runs again. Back up whatever's already
+# there, copy the fresh checkout over, then restore it — so first install
+# gets the repo's (harmless, demo) defaults, and every install after that
+# keeps whatever you actually configured.
+DATA_BACKUP="$(mktemp -d)"
+for app_dir in mod-manager server-manager; do
+  if [ -d "$INSTALL_DIR/$app_dir/data" ]; then
+    cp -r "$INSTALL_DIR/$app_dir/data" "$DATA_BACKUP/$app_dir-data" 2>/dev/null || true
+  fi
+done
+
 # Copies the whole checkout (including .git, if present) so the Installer's
 # "Check for updates" can later `git pull` this one clone and restart all
 # three services — updating the whole ecosystem in one action instead of
@@ -95,6 +112,15 @@ $SUDO cp -r "$REPO_DIR"/. "$INSTALL_DIR"/
 $SUDO rm -rf "$INSTALL_DIR/installer/venv" "$INSTALL_DIR/installer/.venv" \
              "$INSTALL_DIR/mod-manager/venv" "$INSTALL_DIR/mod-manager/.venv" \
              "$INSTALL_DIR/server-manager/venv" "$INSTALL_DIR/server-manager/.venv"
+
+for app_dir in mod-manager server-manager; do
+  if [ -d "$DATA_BACKUP/$app_dir-data" ]; then
+    echo "    Restoring your existing $app_dir settings (not overwriting with the repo's demo data)..."
+    $SUDO rm -rf "$INSTALL_DIR/$app_dir/data"
+    $SUDO cp -r "$DATA_BACKUP/$app_dir-data" "$INSTALL_DIR/$app_dir/data"
+  fi
+done
+rm -rf "$DATA_BACKUP"
 
 echo "[4/7] Setting ownership (Installer + Server Manager as root, since they"
 echo "      genuinely need it for apt/docker/systemctl; Mod Manager as '$INSTALL_USER',"
