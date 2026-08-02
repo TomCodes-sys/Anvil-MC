@@ -27,7 +27,16 @@ echo "=================================================="
 
 if [ "$EUID" -eq 0 ]; then
   SUDO=""
-  INSTALL_USER="root"
+  # sudo sets $SUDO_USER to whoever actually ran the command — recovering
+  # that here matters a lot: without it, "sudo bash install.sh" (exactly
+  # what's documented) would set INSTALL_USER to the literal string "root",
+  # meaning Mod Manager gets installed to run AS ROOT instead of as an
+  # unprivileged user — quietly defeating the whole reason it runs
+  # unprivileged in the first place (it's the one app here that downloads
+  # and unzips files from the internet). Only truly falls back to "root"
+  # if this was actually run while logged in as root directly, with no
+  # sudo involved at all (so there's no other user to attribute it to).
+  INSTALL_USER="${SUDO_USER:-root}"
 else
   if ! command -v sudo &> /dev/null; then
     echo "This user isn't root and sudo isn't installed, so this script can't get the"
@@ -189,12 +198,19 @@ install_component() {
   local label="$1" dir="$2" user="$3" service_file="$4" service_name
   service_name="$(basename "$service_file" .service)"
   echo "    Setting up $label..."
-  python3 -m venv "$INSTALL_DIR/$dir/venv"
+  $SUDO python3 -m venv "$INSTALL_DIR/$dir/venv"
   if [ -f "$INSTALL_DIR/$dir/requirements.txt" ]; then
-    "$INSTALL_DIR/$dir/venv/bin/pip" install -q -r "$INSTALL_DIR/$dir/requirements.txt"
+    $SUDO "$INSTALL_DIR/$dir/venv/bin/pip" install -q -r "$INSTALL_DIR/$dir/requirements.txt"
   else
-    "$INSTALL_DIR/$dir/venv/bin/pip" install -q flask flask-sock cryptography
+    $SUDO "$INSTALL_DIR/$dir/venv/bin/pip" install -q flask flask-sock cryptography
   fi
+  # The venv is created here, AFTER the earlier ownership pass over the rest
+  # of $dir — so without this, it would end up owned by whoever's actually
+  # running this script (root, under "sudo bash install.sh" as documented),
+  # regardless of which user this component is meant to run as. A no-op for
+  # root-owned components; the fix that actually matters for Mod Manager,
+  # which needs to run as $INSTALL_USER, not root.
+  $SUDO chown -R "$user":"$user" "$INSTALL_DIR/$dir/venv"
   sed "s/__INSTALL_USER__/$user/" "$INSTALL_DIR/$dir/$service_file" | $SUDO tee "/etc/systemd/system/$service_file" > /dev/null
   $SUDO systemctl daemon-reload
   $SUDO systemctl enable "$service_name" > /dev/null 2>&1
